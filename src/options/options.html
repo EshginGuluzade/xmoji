@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <h1>Xmoji Settings</h1>
+
+    <section>
+      <h2>General</h2>
+      <label>
+        <input type="checkbox" id="enabled" checked>
+        Enable extension
+      </label>
+      <label>
+        <input type="checkbox" id="replaceOnComplete" checked>
+        Auto-replace when closing <code>:</code> is typed
+      </label>
+      <label>
+        <input type="checkbox" id="showAutocomplete" checked>
+        Show autocomplete popup
+      </label>
+      <label>
+        Min characters for autocomplete:
+        <input type="number" id="autocompleteMinChars" min="1" max="5" value="2">
+      </label>
+    </section>
+
+    <section>
+      <h2>Custom Shortcodes</h2>
+      <p>Add your own shortcode → emoji mappings:</p>
+      <div id="customShortcodes"></div>
+      <button id="addCustom">+ Add Custom Shortcode</button>
+    </section>
+
+    <button id="save">Save</button>
+    <span id="status"></span>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>

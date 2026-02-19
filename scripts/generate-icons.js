@@ -1,4 +1,4 @@
-// Generate modern Xmoji icon — gradient "X" with emoji face at center
+// Generate Xmoji icon — "X Intersect Glow": bold white X on black with amber glow and emoji face
 const fs = require('fs');
 const path = require('path');
 const { deflateSync } = require('zlib');
@@ -72,15 +72,15 @@ function clamp01(v) {
 }
 
 // --- Color palette ---
-const BG_COLOR = [26, 26, 31, 255];            // #1A1A1F dark background
-const X_TOP = [255, 213, 79, 255];             // #FFD54F warm gold
-const X_BOTTOM = [255, 107, 53, 255];          // #FF6B35 warm orange-red
-const FACE_TOP = [255, 228, 110, 255];         // #FFE46E bright yellow
-const FACE_BOTTOM = [255, 165, 50, 255];       // #FFA532 bright orange
-const RING_COLOR = [30, 28, 36, 255];          // dark ring to separate face from X
-const EYE_COLOR = [74, 40, 16, 255];           // #4A2810 dark brown
-const EYE_HIGHLIGHT = [255, 255, 255, 204];    // white at 80% opacity
-const SMILE_COLOR = [140, 58, 18, 255];        // #8C3A12 warm brown
+const BG_COLOR = [0, 0, 0, 255];               // #000000 pure black background
+const X_STROKE = [255, 255, 255, 255];         // #FFFFFF bold white X
+const GLOW_COLOR = [255, 149, 0, 120];         // #FF9500 warm amber glow (47% opacity)
+const FACE_TOP = [255, 212, 59, 255];          // #FFD43B bright gold
+const FACE_BOTTOM = [255, 149, 0, 255];        // #FF9500 rich amber
+const SHADOW_RING = [0, 0, 0, 102];            // #000000 40% black shadow around face
+const EYE_COLOR = [26, 26, 26, 255];           // #1A1A1A near-black for contrast
+const EYE_HIGHLIGHT = [255, 255, 255, 179];    // white at 70% opacity
+const SMILE_COLOR = [179, 90, 0, 255];         // #B35A00 warm dark amber
 
 // --- PNG encoder ---
 
@@ -120,22 +120,25 @@ function createPNG(size) {
 
   const center = size / 2;
 
-  // Background rounded rect
-  const rectHalf = size * 0.45;
-  const cornerR = size * 0.22;
+  // Background rounded rect — 94% of canvas, 18% corner radius
+  const rectHalf = size * 0.47;
+  const cornerR = size * 0.18;
 
-  // X shape
-  const xMargin = size * 0.22;
-  const xStrokeHalf = Math.max(size * 0.085, 1.4);
+  // X shape — margins at 18%, bold stroke
+  const xMargin = size * 0.18;
+  const xStrokeHalf = Math.max(size * 0.09, 1.5);
   const a1x = xMargin, a1y = xMargin;
   const b1x = size - xMargin, b1y = size - xMargin;
   const a2x = size - xMargin, a2y = xMargin;
   const b2x = xMargin, b2y = size - xMargin;
 
-  // Face circle at center
-  const faceR = size * 0.22;
-  const borderW = Math.max(size * 0.02, 0.8);
-  const borderR = faceR + borderW;
+  // Amber radial glow — radius 35% of size
+  const glowR = size * 0.35;
+
+  // Face circle at center — radius 16% of size
+  const faceR = size * 0.16;
+  const shadowRingW = Math.max(size * 0.02, 0.8);
+  const shadowRingR = faceR + shadowRingW;
 
   // Eyes (offsets relative to face center)
   const eyeOffX = faceR * 0.36;
@@ -163,33 +166,41 @@ function createPNG(size) {
 
       let pixel = [0, 0, 0, 0];
 
-      // --- Layer 1: Dark rounded rect background ---
+      // --- Layer 1: Black rounded rect background ---
       const rectDist = sdfRoundedRect(px, py, center, center, rectHalf, rectHalf, cornerR);
       const rectAlpha = 1 - smoothstep(-aa, aa, rectDist);
       if (rectAlpha > 0) {
         pixel = alphaComposite(pixel, [BG_COLOR[0], BG_COLOR[1], BG_COLOR[2], rectAlpha * 255]);
       }
 
-      // --- Layer 2: Gradient X letterform ---
+      // --- Layer 2: Bold white X strokes ---
       const d1 = sdfSegment(px, py, a1x, a1y, b1x, b1y);
       const d2 = sdfSegment(px, py, a2x, a2y, b2x, b2y);
       const xDist = Math.min(d1, d2) - xStrokeHalf;
       const xAlpha = 1 - smoothstep(-aa, aa, xDist);
       if (xAlpha > 0) {
-        const t = clamp01((py - xMargin) / (size - 2 * xMargin));
-        const xColor = lerpColor(X_TOP, X_BOTTOM, t);
-        xColor[3] = xAlpha * 255;
-        pixel = alphaComposite(pixel, xColor);
+        pixel = alphaComposite(pixel, [X_STROKE[0], X_STROKE[1], X_STROKE[2], xAlpha * 255]);
       }
 
-      // --- Layer 3: Dark ring behind face (separation border) ---
-      const borderDist = sdfCircle(px, py, center, center, borderR);
-      const borderAlpha = 1 - smoothstep(-aa, aa, borderDist);
-      if (borderAlpha > 0) {
-        pixel = alphaComposite(pixel, [RING_COLOR[0], RING_COLOR[1], RING_COLOR[2], borderAlpha * 255]);
+      // --- Layer 3: Amber radial glow at center intersection ---
+      const distFromCenter = Math.sqrt((px - center) ** 2 + (py - center) ** 2);
+      if (distFromCenter < glowR) {
+        const glowT = distFromCenter / glowR;
+        const glowFalloff = (1 - glowT * glowT);  // quadratic falloff
+        const glowAlpha = glowFalloff * (GLOW_COLOR[3] / 255);
+        if (glowAlpha > 0) {
+          pixel = alphaComposite(pixel, [GLOW_COLOR[0], GLOW_COLOR[1], GLOW_COLOR[2], glowAlpha * 255]);
+        }
       }
 
-      // --- Layer 4: Emoji face with yellow→orange gradient ---
+      // --- Layer 4: Shadow ring behind emoji face ---
+      const shadowDist = sdfCircle(px, py, center, center, shadowRingR);
+      const shadowAlpha = 1 - smoothstep(-aa, aa, shadowDist);
+      if (shadowAlpha > 0) {
+        pixel = alphaComposite(pixel, [SHADOW_RING[0], SHADOW_RING[1], SHADOW_RING[2], shadowAlpha * SHADOW_RING[3]]);
+      }
+
+      // --- Layer 5: Emoji face with gold→amber gradient ---
       const faceDist = sdfCircle(px, py, center, center, faceR);
       const faceAlpha = 1 - smoothstep(-aa, aa, faceDist);
       if (faceAlpha > 0) {
@@ -199,7 +210,7 @@ function createPNG(size) {
         pixel = alphaComposite(pixel, faceColor);
       }
 
-      // --- Layers 5-6: Eyes (skip at 16px) ---
+      // --- Layer 6: Eyes (32px+) ---
       if (size >= 32) {
         for (const sign of [-1, 1]) {
           const ex = center + sign * eyeOffX;
@@ -212,7 +223,7 @@ function createPNG(size) {
         }
       }
 
-      // --- Layers 7-8: Eye highlights (skip at ≤32px) ---
+      // --- Layer 7: Eye highlights (48px+) ---
       if (size >= 48) {
         for (const sign of [-1, 1]) {
           const hx = center + sign * eyeOffX + hlOffX;
@@ -225,7 +236,7 @@ function createPNG(size) {
         }
       }
 
-      // --- Layer 9: Smile arc (skip at 16px) ---
+      // --- Layer 8: Smile arc (32px+) ---
       if (size >= 32) {
         const smCenterY = center + smileOffY;
         const smDx = px - center;

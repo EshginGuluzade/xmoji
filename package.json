@@ -9,10 +9,12 @@
     "build:copy": "node scripts/build.js",
     "build": "npm run build:data && npm run build:content && npm run build:copy",
     "clean": "rm -rf dist",
-    "dev": "npm run build && node scripts/watch.js"
+    "dev": "npm run build && node scripts/watch.js",
+    "generate:promo": "node scripts/generate-promo-assets.js"
   },
   "devDependencies": {
     "emoji-datasource": "^16.0.0",
-    "esbuild": "^0.24.0"
+    "esbuild": "^0.24.0",
+    "puppeteer": "^24.37.5"
   }
 }
